@@ -4,21 +4,13 @@
 
 (require 'workspace-file)
 
-(cl-defstruct workspace-inbox-entry id title status source created-on)
-(cl-defstruct range buffer start end)
-
 (cl-defun workspace-inbox-explore (workspace)
-  (let ((buffer (workspace-inbox-get-buffer-create workspace)))
+  (let ((buffer (workspace-inbox-buffer workspace)))
     (with-current-buffer buffer (revert-buffer))
     (switch-to-buffer buffer)))
 
-(cl-defun workspace-inbox-get-buffer-create (workspace)
-  (let ((name (format "%s:inbox" "TODO")))
-    (or (get-buffer name)
-	(workspace-inbox-make-buffer workspace name))))
-
-(cl-defun workspace-inbox-make-buffer (workspace buffer-name)
-  (let ((buffer (get-buffer-create buffer-name)))
+(cl-defun workspace-inbox-buffer (workspace)
+  (let ((buffer (get-buffer-create (format "%s:inbox" "TODO"))))
     (with-current-buffer buffer
       (workspace-inbox-mode)
       (workspace-inbox-initialize-buffer workspace))
@@ -33,19 +25,9 @@
   (unless (derived-mode-p 'workspace-inbox-mode)
     (error "Not an inbox: " major-mode))
 
-  (let* ((id     (tabulated-list-get-id))
-	 (range  (get-text-property (point-min) :source id))
-	 (entry-buffer (concat (buffer-name) ":" id)))
-    (with-current-buffer (get-buffer-create entry-buffer)
-      (unless (derived-mode-p 'org-mode)
-	;; buffer was just created, let's initialize it
-	(insert-buffer-substring (range-buffer range)
-				 (range-start  range)
-				 (range-end    range))
-	(org-mode)
-	(org-hide-drawer-all))
-      
-      (switch-to-buffer (current-buffer)))))
+  (let* ((workspace (workspace-select))
+	 (entry     (get-text-property (point-min) :entry (tabulated-list-get-id))))
+    (switch-to-buffer (workspace-inbox-entry-buffer workspace entry))))
 
 (define-derived-mode workspace-inbox-mode tabulated-list-mode "Inbox"
   (add-hook 'tabulated-list-revert-hook #'workspace-inbox-buffer-refresh nil t)
@@ -66,19 +48,18 @@
 	(created (workspace-inbox-entry-created-on entry))
 	(status  (workspace-inbox-entry-status     entry))
 	(title   (workspace-inbox-entry-title      entry)))
-    (list (propertize id :source source)
+    (list (propertize id :entry entry)
 	  (vector created status title))))
 
-(cl-defun workspace-inbox-initialize-buffer (workspace &optional buffer)
-  (with-current-buffer (or buffer (current-buffer))
-    (unless (eq major-mode 'workspace-inbox-mode)
-      (error "not in workspace-inbox-mode"))
+(cl-defun workspace-inbox-initialize-buffer (workspace )
+  (unless (eq major-mode 'workspace-inbox-mode)
+    (error "not in workspace-inbox-mode"))
 
-    (setq-local current-workspace workspace)
-    
-    (let ((header [("Created" 10 t) ("Status" 6 t) ("Title" 1 t)]))
-      (setq-local tabulated-list-format header)
-      (tabulated-list-init-header))))
+  (setq-local current-workspace workspace)
+  
+  (let ((header [("Created" 10 t) ("Status" 6 t) ("Title" 1 t)]))
+    (setq-local tabulated-list-format header)
+    (tabulated-list-init-header)))
 
 (cl-defun workspace-inbox-entries (workspace)
   (let ((files (f-files (workspace-inbox-directory workspace) nil t))

@@ -33,18 +33,18 @@
 (cl-defun workspace-capture-empty-buffer-p ()
   (string= "* " (buffer-string)))
 
-(cl-defun workspace-capture-discard (workspace mode)
+(cl-defun workspace-capture-discard (workspace)
   (when (or (workspace-capture-empty-buffer-p)
 	    (y-or-n-p "Discard entry?")) ;; TODO we could include the title here
     (kill-buffer)))
 
-(defun workspace-capture-commit (workspace mode)
+(defun workspace-capture-commit (workspace)
   (unless (workspace-capture-empty-buffer-p)
-    (workspace-capture--wrap-current-entry  workspace mode)
-    (workspace-capture--store-current-entry workspace mode)
+    (workspace-capture--wrap-current-entry  workspace)
+    (workspace-capture--store-current-entry workspace)
     (kill-buffer)))
 
-(defun workspace-capture--wrap-current-entry (workspace mode)
+(defun workspace-capture--wrap-current-entry (workspace)
   (goto-char (point-min))
 
   ;; make the entry a TODO
@@ -60,7 +60,7 @@
     (let ((org-time-stamp-formats '("<%Y-%m-%d>")))
       (org-entry-put nil "SCHEDULED" (org-current-year-month-day)))))
 
-(defun workspace-capture--store-current-entry (workspace mode)
+(defun workspace-capture--store-current-entry (workspace)
   (workspace-store workspace
 		   (current-buffer)
 		   (make-workspace-file
